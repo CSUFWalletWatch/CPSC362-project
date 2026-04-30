@@ -46,7 +46,7 @@ export default function GoalsPreview() {
     );
   }
 
-  const percent = Math.round((goal.saved / goal.target) * 100);
+  const percent = goal.target > 0 ? Math.min(Math.round((goal.saved / goal.target) * 100), 100) : 0;
 
   return (
     <div className="border rounded-lg p-4 space-y-3">
