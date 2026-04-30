@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import { TRANSACTION_CATEGORIES } from "@/lib/categories";
 
 type Transaction = {
@@ -15,8 +16,13 @@ type Transaction = {
 };
 
 export default function TransactionHistory() {
+  const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -32,24 +38,16 @@ export default function TransactionHistory() {
   const [formDate, setFormDate] = useState("");
 
   useEffect(() => {
-    fetchTransactions();
-  }, []);
+    if (!authLoading && !user) navigate("/auth");
+  }, [user, authLoading, navigate]);
+
+  useEffect(() => {
+    if (user) fetchTransactions();
+  }, [user]);
 
   async function fetchTransactions() {
+    if (!user) return;
     setLoading(true);
-
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      console.error("User fetch error:", userError);
-      setTransactions([]);
-      setLoading(false);
-      return;
-    }
-
     const { data, error } = await supabase
       .from("transactions")
       .select("id, user_id, date, name, amount, category, is_manual")
@@ -57,21 +55,16 @@ export default function TransactionHistory() {
       .order("date", { ascending: false });
 
     if (error) {
-      console.error("Fetch error:", error);
+      toast({ title: "Error loading transactions", description: error.message, variant: "destructive" });
     } else {
       setTransactions((data as Transaction[]) || []);
     }
-
     setLoading(false);
   }
 
-  const sortedTransactions = [...transactions].sort((a, b) =>
-    b.date.localeCompare(a.date)
-  );
-
-  const filteredTransactions = sortedTransactions.filter((transaction) => {
-    if (startDate && transaction.date < startDate) return false;
-    if (endDate && transaction.date > endDate) return false;
+  const filteredTransactions = transactions.filter((t) => {
+    if (startDate && t.date < startDate) return false;
+    if (endDate && t.date > endDate) return false;
     return true;
   });
 
@@ -91,67 +84,66 @@ export default function TransactionHistory() {
   }
 
   function handleEditToggle() {
-    const nextEditMode = !isEditMode;
-    setIsEditMode(nextEditMode);
+    setIsEditMode((prev) => !prev);
     setShowForm(false);
     clearForm();
   }
 
   async function handleSubmitTransaction() {
-    if (!formName || !formAmount || !formCategory || !formDate) return;
-
-    const parsedAmount = Number(formAmount);
-    if (Number.isNaN(parsedAmount) || parsedAmount <= 0) return;
-
-    const signedAmount = formType === "expense" ? -parsedAmount : parsedAmount;
-
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      console.error("User fetch error:", userError);
+    if (!user || !formName || !formAmount || !formDate) {
+      toast({ title: "Please fill in all fields", variant: "destructive" });
       return;
     }
 
+    const parsedAmount = Number(formAmount);
+    if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
+      toast({ title: "Enter a valid amount greater than 0", variant: "destructive" });
+      return;
+    }
+
+    const resolvedCategory = formCategory || (formType === "income" ? "Income" : "Other");
+    const signedAmount = formType === "expense" ? -parsedAmount : parsedAmount;
+    setSubmitting(true);
+
     if (editingId) {
-      const existingTransaction = transactions.find((t) => t.id === editingId);
-      if (!existingTransaction || !existingTransaction.is_manual) return;
+      const existing = transactions.find((t) => t.id === editingId);
+      if (!existing?.is_manual) {
+        toast({ title: "Only manual transactions can be edited", variant: "destructive" });
+        setSubmitting(false);
+        return;
+      }
 
       const { error } = await supabase
         .from("transactions")
-        .update({
-          name: formName,
-          amount: signedAmount,
-          category: formCategory,
-          date: formDate,
-        })
+        .update({ name: formName, amount: signedAmount, category: resolvedCategory, date: formDate })
         .eq("id", editingId)
         .eq("user_id", user.id);
 
       if (error) {
-        console.error("Update error:", error);
+        toast({ title: "Error updating transaction", description: error.message, variant: "destructive" });
+        setSubmitting(false);
         return;
       }
+      toast({ title: "Transaction updated" });
     } else {
-      const { error } = await supabase.from("transactions").insert([
-        {
-          user_id: user.id,
-          name: formName,
-          amount: signedAmount,
-          category: formCategory,
-          date: formDate,
-          is_manual: true,
-        },
-      ]);
+      const { error } = await supabase.from("transactions").insert([{
+        user_id: user.id,
+        name: formName,
+        amount: signedAmount,
+        category: resolvedCategory,
+        date: formDate,
+        is_manual: true,
+      }]);
 
       if (error) {
-        console.error("Insert error:", error);
+        toast({ title: "Error adding transaction", description: error.message, variant: "destructive" });
+        setSubmitting(false);
         return;
       }
+      toast({ title: "Transaction added" });
     }
 
+    setSubmitting(false);
     await fetchTransactions();
     clearForm();
     setShowForm(false);
@@ -160,7 +152,6 @@ export default function TransactionHistory() {
 
   function selectTransactionForEditing(transaction: Transaction) {
     if (!isEditMode || !transaction.is_manual) return;
-
     setEditingId(transaction.id);
     setFormName(transaction.name);
     setFormAmount(Math.abs(transaction.amount).toString());
@@ -171,231 +162,208 @@ export default function TransactionHistory() {
   }
 
   async function removeTransaction(id: string) {
-    const transactionToRemove = transactions.find((t) => t.id === id);
-    if (!transactionToRemove || !transactionToRemove.is_manual) return;
-
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      console.error("User fetch error:", userError);
+    if (!user) return;
+    const target = transactions.find((t) => t.id === id);
+    if (!target?.is_manual) {
+      toast({ title: "Only manual transactions can be deleted", variant: "destructive" });
       return;
     }
 
-    const { error } = await supabase
-      .from("transactions")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", user.id);
-
+    const { error } = await supabase.from("transactions").delete().eq("id", id).eq("user_id", user.id);
     if (error) {
-      console.error("Delete error:", error);
+      toast({ title: "Error deleting transaction", description: error.message, variant: "destructive" });
       return;
     }
-
+    toast({ title: "Transaction deleted" });
+    if (editingId === id) { clearForm(); setShowForm(false); }
     await fetchTransactions();
-
-    if (editingId === id) {
-      clearForm();
-      setShowForm(false);
-    }
   }
 
+  if (authLoading) return null;
+
   return (
-    <div className="min-h-screen p-6">
-      <div className="flex items-center justify-between mb-2">
-        <Link
-          to="/"
-          className="text-sm text-muted-foreground hover:text-foreground"
-        >
-          ← Dashboard
-        </Link>
-
-        <h1 className="text-3xl font-bold">Transaction History</h1>
-
-        <div className="w-[100px]" />
-      </div>
-
-      <p className="text-muted-foreground">View all income and expenses.</p>
-
-      <div className="mt-4 flex flex-wrap gap-4 items-end">
-        <div className="flex flex-col">
-          <label className="text-sm">Start Date</label>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="border rounded-md px-3 py-2"
-          />
-        </div>
-
-        <div className="flex flex-col">
-          <label className="text-sm">End Date</label>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="border rounded-md px-3 py-2"
-          />
-        </div>
-
-        <button
-          onClick={() => {
-            setStartDate("");
-            setEndDate("");
-          }}
-          className="border rounded-md px-4 py-2"
-        >
-          Reset
-        </button>
-
-        <button
-          onClick={() => {
-            if (showForm && !editingId) {
-              setShowForm(false);
-              clearForm();
-            } else {
-              handleAddClick();
-            }
-          }}
-          className="border rounded-md px-4 py-2"
-        >
-          {showForm && !editingId ? "Cancel" : "Add"}
-        </button>
-
-        <button
-          onClick={handleEditToggle}
-          className="border rounded-md px-4 py-2"
-        >
-          {isEditMode ? "Done" : "Edit"}
-        </button>
-      </div>
-
-      {isEditMode && (
-        <p className="mt-3 text-sm text-muted-foreground">
-          Click a custom transaction to edit it, or use X to remove it.
-        </p>
-      )}
-
-      {showForm && (
-        <div className="mt-6 border rounded-lg p-4 space-y-4">
-          <h2 className="text-lg font-semibold">
-            {editingId ? "Edit Custom Transaction" : "Add Custom Transaction"}
-          </h2>
-
-          <div className="flex flex-wrap gap-3">
-            <input
-              type="text"
-              placeholder="Name"
-              value={formName}
-              onChange={(e) => setFormName(e.target.value)}
-              className="border rounded-md px-3 py-2"
-            />
-
-            <select
-              value={formCategory}
-              onChange={(e) => setFormCategory(e.target.value)}
-              className="border rounded-md px-3 py-2"
-            >
-              <option value="">Select Category</option>
-              {TRANSACTION_CATEGORIES.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={formType}
-              onChange={(e) =>
-                setFormType(e.target.value as "income" | "expense")
-              }
-              className="border rounded-md px-3 py-2"
-            >
-              <option value="expense">Expense</option>
-              <option value="income">Income</option>
-            </select>
-
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="Amount"
-              value={formAmount}
-              onChange={(e) => setFormAmount(e.target.value)}
-              className="border rounded-md px-3 py-2"
-            />
-
-            <input
-              type="date"
-              value={formDate}
-              onChange={(e) => setFormDate(e.target.value)}
-              className="border rounded-md px-3 py-2"
-            />
-
+    <div className="min-h-screen bg-background">
+      <header className="border-b border-border">
+        <div className="max-w-4xl mx-auto px-6 py-5 flex items-center justify-between">
+          <Link to="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+            ← Dashboard
+          </Link>
+          <h1 className="font-heading text-lg tracking-tight text-foreground">Transaction History</h1>
+          <div className="flex gap-2">
             <button
-              onClick={handleSubmitTransaction}
-              className="border rounded-md px-4 py-2"
+              onClick={() => { if (showForm && !editingId) { setShowForm(false); clearForm(); } else { handleAddClick(); } }}
+              className="px-3 py-1.5 rounded-md border border-border text-sm hover:bg-muted transition-colors"
             >
-              {editingId ? "Save Changes" : "Submit"}
+              {showForm && !editingId ? "Cancel" : "+ Add"}
+            </button>
+            <button
+              onClick={handleEditToggle}
+              className={`px-3 py-1.5 rounded-md border text-sm transition-colors ${isEditMode ? "border-foreground bg-foreground text-background" : "border-border hover:bg-muted"}`}
+            >
+              {isEditMode ? "Done" : "Edit"}
             </button>
           </div>
         </div>
-      )}
+      </header>
 
-      <div className="mt-6 border rounded-lg p-4 space-y-4">
-        {loading ? (
-          <p>Loading transactions...</p>
-        ) : filteredTransactions.length === 0 ? (
-          <p>No transactions in this date range.</p>
-        ) : (
-          filteredTransactions.map((transaction) => (
-            <div
-              key={transaction.id}
-              onClick={() => selectTransactionForEditing(transaction)}
-              className={`flex justify-between items-center border-b pb-2 ${
-                isEditMode && transaction.is_manual
-                  ? "cursor-pointer hover:bg-muted/50 rounded-md px-2 py-2"
-                  : ""
-              }`}
-            >
-              <div>
-                <p className="font-medium">{transaction.name}</p>
-                <p className="text-sm text-muted-foreground">
-                  {transaction.category} • {transaction.date}
-                  {transaction.is_manual ? " • Custom" : " • Bank"}
-                </p>
+      <main className="max-w-4xl mx-auto px-6 py-10 space-y-6">
+
+        {/* Add / edit form */}
+        {showForm && (
+          <section className="bg-card rounded-lg p-6">
+            <p className="text-sm font-body text-muted-foreground tracking-wide uppercase mb-4">
+              {editingId ? "Edit Transaction" : "Add Transaction"}
+            </p>
+            <div className="flex flex-wrap gap-3 items-end">
+              <div className="flex-1 min-w-[140px]">
+                <label className="text-xs text-muted-foreground mb-1 block">Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Grocery run"
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                />
               </div>
 
-              <div className="flex items-center gap-3">
-                <p
-                  className={`font-semibold ${
-                    transaction.amount < 0 ? "text-red-500" : "text-green-500"
-                  }`}
+              <div className="min-w-[140px]">
+                <label className="text-xs text-muted-foreground mb-1 block">Category</label>
+                <select
+                  value={formCategory}
+                  onChange={(e) => setFormCategory(e.target.value)}
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                 >
-                  {transaction.amount < 0
-                    ? `-$${Math.abs(transaction.amount).toFixed(2)}`
-                    : `+$${transaction.amount.toFixed(2)}`}
-                </p>
-
-                {isEditMode && transaction.is_manual && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeTransaction(transaction.id);
-                    }}
-                    className="border rounded-md px-2 py-1 text-sm"
-                  >
-                    X
-                  </button>
-                )}
+                  <option value="">Select category</option>
+                  {TRANSACTION_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
               </div>
+
+              <div className="min-w-[110px]">
+                <label className="text-xs text-muted-foreground mb-1 block">Type</label>
+                <select
+                  value={formType}
+                  onChange={(e) => {
+                    const newType = e.target.value as "income" | "expense";
+                    setFormType(newType);
+                    if (newType === "income" && !formCategory) setFormCategory("Income");
+                  }}
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                >
+                  <option value="expense">Expense</option>
+                  <option value="income">Income</option>
+                </select>
+              </div>
+
+              <div className="min-w-[110px]">
+                <label className="text-xs text-muted-foreground mb-1 block">Amount</label>
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formAmount}
+                  onChange={(e) => setFormAmount(e.target.value)}
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                />
+              </div>
+
+              <div className="min-w-[130px]">
+                <label className="text-xs text-muted-foreground mb-1 block">Date</label>
+                <input
+                  type="date"
+                  value={formDate}
+                  onChange={(e) => setFormDate(e.target.value)}
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                />
+              </div>
+
+              <button
+                onClick={handleSubmitTransaction}
+                disabled={submitting}
+                className="rounded-md bg-foreground text-background px-4 py-2 text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {submitting ? "Saving…" : editingId ? "Save" : "Add"}
+              </button>
             </div>
-          ))
+          </section>
         )}
-      </div>
+
+        {/* Date filters */}
+        <div className="flex flex-wrap gap-3 items-end">
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">From</label>
+            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
+              className="rounded-md border border-border bg-background px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">To</label>
+            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
+              className="rounded-md border border-border bg-background px-3 py-2 text-sm" />
+          </div>
+          {(startDate || endDate) && (
+            <button onClick={() => { setStartDate(""); setEndDate(""); }}
+              className="rounded-md border border-border px-3 py-2 text-sm hover:bg-muted transition-colors">
+              Clear
+            </button>
+          )}
+          {(startDate || endDate) && (
+            <p className="text-xs text-muted-foreground self-end pb-2">
+              {filteredTransactions.length} result{filteredTransactions.length !== 1 ? "s" : ""}
+            </p>
+          )}
+        </div>
+
+        {isEditMode && (
+          <p className="text-xs text-muted-foreground">Click a manual transaction to edit it, or press × to delete.</p>
+        )}
+
+        {/* Transaction list */}
+        <section className="bg-card rounded-lg divide-y divide-border">
+          {loading ? (
+            <p className="text-sm text-muted-foreground p-6">Loading…</p>
+          ) : filteredTransactions.length === 0 ? (
+            <p className="text-sm text-muted-foreground p-6 text-center">
+              {startDate || endDate ? "No transactions in this date range." : "No transactions yet. Add one to get started!"}
+            </p>
+          ) : (
+            filteredTransactions.map((tx) => (
+              <div
+                key={tx.id}
+                onClick={() => selectTransactionForEditing(tx)}
+                className={`flex items-center justify-between px-6 py-4 ${
+                  isEditMode && tx.is_manual ? "cursor-pointer hover:bg-muted/50 transition-colors" : ""
+                }`}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-foreground truncate">{tx.name}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {tx.category || "Uncategorized"} · {tx.date}
+                    {tx.is_manual ? " · Manual" : " · Bank"}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3 ml-4">
+                  <span className={`font-mono text-sm font-medium ${tx.amount < 0 ? "text-red-500" : "text-green-600"}`}>
+                    {tx.amount < 0 ? "−" : "+"}${Math.abs(tx.amount).toFixed(2)}
+                  </span>
+
+                  {isEditMode && tx.is_manual && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); removeTransaction(tx.id); }}
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-muted transition-colors text-xs"
+                      aria-label="Delete"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </section>
+      </main>
     </div>
   );
 }
