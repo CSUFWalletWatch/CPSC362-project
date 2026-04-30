@@ -1,5 +1,4 @@
 import React from "react";
-import "./Insights.css";
 
 const Insights = () => {
   // Placeholder values
