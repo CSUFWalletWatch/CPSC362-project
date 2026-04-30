@@ -17,22 +17,21 @@ const ResetPassword = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY") {
         setReady(true);
+        setChecking(false);
+      } else if (event === "INITIAL_SESSION") {
+        // If Supabase already processed the recovery hash before we subscribed,
+        // the session will be present and the URL will still carry type=recovery.
+        const params = new URLSearchParams(window.location.hash.substring(1));
+        if (params.get("type") === "recovery" && session) {
+          setReady(true);
+        }
         setChecking(false);
       }
     });
 
-    // Check existing session as fallback (user may have already been authed by the recovery link)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setReady(true);
-      }
-      setChecking(false);
-    });
-
-    // Timeout so user never gets stuck
     const timeout = setTimeout(() => setChecking(false), 5000);
 
     return () => {
