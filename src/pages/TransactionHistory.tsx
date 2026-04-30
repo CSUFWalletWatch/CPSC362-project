@@ -90,7 +90,7 @@ export default function TransactionHistory() {
   }
 
   async function handleSubmitTransaction() {
-    if (!user || !formName || !formAmount || !formCategory || !formDate) {
+    if (!user || !formName || !formAmount || !formDate) {
       toast({ title: "Please fill in all fields", variant: "destructive" });
       return;
     }
@@ -101,6 +101,7 @@ export default function TransactionHistory() {
       return;
     }
 
+    const resolvedCategory = formCategory || (formType === "income" ? "Income" : "Other");
     const signedAmount = formType === "expense" ? -parsedAmount : parsedAmount;
     setSubmitting(true);
 
@@ -114,7 +115,7 @@ export default function TransactionHistory() {
 
       const { error } = await supabase
         .from("transactions")
-        .update({ name: formName, amount: signedAmount, category: formCategory, date: formDate })
+        .update({ name: formName, amount: signedAmount, category: resolvedCategory, date: formDate })
         .eq("id", editingId)
         .eq("user_id", user.id);
 
@@ -129,7 +130,7 @@ export default function TransactionHistory() {
         user_id: user.id,
         name: formName,
         amount: signedAmount,
-        category: formCategory,
+        category: resolvedCategory,
         date: formDate,
         is_manual: true,
       }]);
@@ -243,7 +244,11 @@ export default function TransactionHistory() {
                 <label className="text-xs text-muted-foreground mb-1 block">Type</label>
                 <select
                   value={formType}
-                  onChange={(e) => setFormType(e.target.value as "income" | "expense")}
+                  onChange={(e) => {
+                    const newType = e.target.value as "income" | "expense";
+                    setFormType(newType);
+                    if (newType === "income" && !formCategory) setFormCategory("Income");
+                  }}
                   className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                 >
                   <option value="expense">Expense</option>
