@@ -196,6 +196,19 @@ export default function Goals() {
       return;
     }
 
+    // Record a debit transaction so net worth reflects the contribution
+    const { error: txError } = await supabase.from("transactions").insert({
+      user_id: user.id,
+      name: `Goal: ${selectedGoal.name}`,
+      amount: -amount,
+      category: "Savings",
+      date: new Date().toISOString().split("T")[0],
+      is_manual: true,
+    });
+    if (txError) {
+      console.error("Insert contribution transaction error:", txError);
+    }
+
     setContributionAmount("");
     setSelectedGoalId("");
     await fetchGoals();
