@@ -1,0 +1,66 @@
+@import url('https://fonts.googleapis.com/css2?family=Arvo:wght@400;700&family=Inter:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 40 20% 97%;
+    --foreground: 0 0% 16%;
+
+    --card: 40 10% 90%;
+    --card-foreground: 0 0% 16%;
+
+    --popover: 40 20% 97%;
+    --popover-foreground: 0 0% 16%;
+
+    --primary: 19 100% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 40 10% 90%;
+    --secondary-foreground: 0 0% 16%;
+
+    --muted: 40 10% 93%;
+    --muted-foreground: 0 0% 40%;
+
+    --accent: 19 100% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 40 10% 86%;
+    --input: 40 10% 86%;
+    --ring: 19 100% 50%;
+
+    --radius: 0.375rem;
+
+    --sidebar-background: 40 20% 97%;
+    --sidebar-foreground: 0 0% 16%;
+    --sidebar-primary: 19 100% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 40 10% 90%;
+    --sidebar-accent-foreground: 0 0% 16%;
+    --sidebar-border: 40 10% 86%;
+    --sidebar-ring: 19 100% 50%;
+
+    --font-heading: 'Arvo', serif;
+    --font-body: 'Inter', sans-serif;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-body);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+  }
+}
