@@ -125,9 +125,11 @@ const Insights = () => {
     return { income: inc, spending: spend, remaining: inc - spend };
   }, [txs]);
 
+  // Hardcoded values matching theme vars: --foreground: 0 0% 16%, --primary: 19 100% 50%
+  const FOREGROUND = "hsl(0,0%,16%)";
+  const PRIMARY = "hsl(19,100%,50%)";
   const BAR_COLORS = [
-    "hsl(var(--foreground))",
-    "#6366f1", "#8b5cf6", "#ec4899", "#f43f5e",
+    PRIMARY, "#6366f1", "#8b5cf6", "#ec4899", "#f43f5e",
     "#f97316", "#eab308", "#22c55e",
   ];
 
@@ -193,8 +195,8 @@ const Insights = () => {
                     width={44}
                   />
                   <Tooltip content={<BarTooltip />} cursor={{ fill: "currentColor", fillOpacity: 0.04 }} />
-                  <Bar dataKey="Income" fill="hsl(var(--foreground))" radius={[3, 3, 0, 0]} maxBarSize={32} />
-                  <Bar dataKey="Spending" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} maxBarSize={32} />
+                  <Bar dataKey="Income" fill={FOREGROUND} radius={[3, 3, 0, 0]} maxBarSize={32} />
+                  <Bar dataKey="Spending" fill={PRIMARY} radius={[3, 3, 0, 0]} maxBarSize={32} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -202,10 +204,10 @@ const Insights = () => {
           {/* Legend */}
           <div className="flex gap-5 mt-4 justify-center">
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className="w-3 h-3 rounded-sm inline-block bg-foreground" /> Income
+              <span className="w-3 h-3 rounded-sm inline-block" style={{ background: FOREGROUND }} /> Income
             </span>
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className="w-3 h-3 rounded-sm inline-block bg-primary" /> Spending
+              <span className="w-3 h-3 rounded-sm inline-block" style={{ background: PRIMARY }} /> Spending
             </span>
           </div>
         </section>
