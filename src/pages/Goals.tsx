@@ -139,6 +139,34 @@ toast({ title: "Goal created" });
     setShowCreateForm(true);
   };
 
+const handleInviteUser = async (goalId: string) => {
+  if (!user || !inviteEmail.trim()) return;
+
+  setSendingInvite(true);
+
+  const { error } = await supabase.from("goal_invites").insert({
+    goal_id: goalId,
+    inviter_id: user.id,
+    invitee_email: inviteEmail.trim().toLowerCase(),
+    status: "pending",
+  });
+
+  if (error) {
+    toast({
+      title: "Error sending invite",
+      description: error.message,
+      variant: "destructive",
+    });
+    setSendingInvite(false);
+    return;
+  }
+
+  toast({ title: "Invite sent" });
+  setInviteEmail("");
+  setInvitingGoalId(null);
+  setSendingInvite(false);
+};
+  
   const handleDeleteGoal = async (goalId: string) => {
     if (!user) return;
     const { error } = await supabase.from("goals").delete().eq("id", goalId).eq("user_id", user.id);
