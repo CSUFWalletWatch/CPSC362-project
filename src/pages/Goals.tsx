@@ -386,41 +386,47 @@ const handleInviteUser = async (goalId: string) => {
 
               return (
                 <div key={goal.id} className="bg-card rounded-lg p-6 space-y-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-medium text-foreground">{goal.name}</p>
-                      <p className="text-sm text-muted-foreground mt-0.5">
-                        ${Number(goal.saved_amount).toFixed(2)} / ${Number(goal.target_amount).toFixed(2)}
-                      </p>
-                      {goal.deadline && (
-                        <p className="text-xs text-muted-foreground mt-0.5">Deadline: {goal.deadline}</p>
-                      )}
-                    </div>
 
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setInvitingGoalId(goal.id)}
-                      className="px-3 py-1 text-xs rounded-md border border-border hover:bg-muted transition-colors"
-                    >
-                      Invite
-                    </button>
-                  
-                    <button
-                      onClick={() => handleEditGoal(goal)}
-                      className="px-3 py-1 text-xs rounded-md border border-border hover:bg-muted transition-colors"
-                    >
-                      Edit
-                    </button>
-                  
-                    <button
-                      onClick={() => handleDeleteGoal(goal.id)}
-                      className="px-3 py-1 text-xs rounded-md border border-border hover:bg-muted transition-colors"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                  </div>
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="font-medium text-foreground">{goal.name}</p>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  ${Number(goal.saved_amount).toFixed(2)} / ${Number(goal.target_amount).toFixed(2)}
+                </p>
+                {goal.deadline && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Deadline: {goal.deadline}
+                  </p>
+                )}
+              </div>
+            
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setInvitingGoalId(goal.id)}
+                  className="px-3 py-1 text-xs rounded-md border border-border hover:bg-muted transition-colors"
+                >
+                  Invite
+                </button>
+            
+                <button
+                  onClick={() => handleEditGoal(goal)}
+                  className="px-3 py-1 text-xs rounded-md border border-border hover:bg-muted transition-colors"
+                >
+                  Edit
+                </button>
+            
+                <button
+                  onClick={() => handleDeleteGoal(goal.id)}
+                  className="px-3 py-1 text-xs rounded-md border border-border hover:bg-muted transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
 
+
+
+                  
                   <div>
                     <div className="w-full bg-muted h-2 rounded-full overflow-hidden">
                       <div
