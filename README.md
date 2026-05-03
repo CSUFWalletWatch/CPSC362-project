@@ -50,9 +50,7 @@ The app will be available at `http://localhost:5173`.
  
 ## Team Members
  
-- **Diyar Tohomer** — Project Lead, Web Application Framework, Supabase Setup, Transaction Categorization
-- **Luc Brown** — Authentication, User Accounts, Savings Goals, Transaction History, Budget Feature
-- **George El-Abed** — Dashboard (Real Data Integration), Net Worth Chart, Vercel Deployment, Auth Database
-- **Nyela R.** — Bill Scheduler, Spending Categories
-- **Speeddoubes** — Dashboard Visualizations, Notifications
- 
+- **Diyar Tohomer** — Project Lead, Web Application Framework, Supabase Setup, Transaction Categorization...
+- **Luc Brown** — Authentication, User Accounts, Savings Goals, Transaction History, Budget Feature...
+- **George El-Abed** — Dashboard (Real Data Integration), Net Worth Chart, Vercel Deployment, Auth Database...
+- **Nyela R.** — 
