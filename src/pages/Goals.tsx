@@ -397,20 +397,28 @@ const handleInviteUser = async (goalId: string) => {
                       )}
                     </div>
 
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEditGoal(goal)}
-                        className="px-3 py-1 text-xs rounded-md border border-border hover:bg-muted transition-colors"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteGoal(goal.id)}
-                        className="px-3 py-1 text-xs rounded-md border border-border hover:bg-muted transition-colors"
-                      >
-                        Delete
-                      </button>
-                    </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setInvitingGoalId(goal.id)}
+                      className="px-3 py-1 text-xs rounded-md border border-border hover:bg-muted transition-colors"
+                    >
+                      Invite
+                    </button>
+                  
+                    <button
+                      onClick={() => handleEditGoal(goal)}
+                      className="px-3 py-1 text-xs rounded-md border border-border hover:bg-muted transition-colors"
+                    >
+                      Edit
+                    </button>
+                  
+                    <button
+                      onClick={() => handleDeleteGoal(goal.id)}
+                      className="px-3 py-1 text-xs rounded-md border border-border hover:bg-muted transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </div>
                   </div>
 
                   <div>
@@ -421,6 +429,36 @@ const handleInviteUser = async (goalId: string) => {
                       />
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">{percent}% complete</p>
+
+                    {invitingGoalId === goal.id && (
+                      <div className="flex gap-2 pt-2">
+                        <input
+                          type="email"
+                          placeholder="Contributor email"
+                          value={inviteEmail}
+                          onChange={(e) => setInviteEmail(e.target.value)}
+                          className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm"
+                        />
+                    
+                        <button
+                          onClick={() => handleInviteUser(goal.id)}
+                          disabled={sendingInvite}
+                          className="rounded-md bg-foreground text-background px-4 py-2 text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+                        >
+                          {sendingInvite ? "Sending…" : "Send"}
+                        </button>
+                    
+                        <button
+                          onClick={() => {
+                            setInvitingGoalId(null);
+                            setInviteEmail("");
+                          }}
+                          className="rounded-md border border-border px-4 py-2 text-sm"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
