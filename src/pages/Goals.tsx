@@ -348,8 +348,12 @@ const handleInviteUser = async (goalId: string) => {
           </button>
         </div>
       </header>
-
+      #TEST CODE
+      <div className="bg-red-500 text-white text-center py-2 font-bold">
+        BUILD TEST V2
+      </div>
       <main className="max-w-4xl mx-auto px-6 py-10 space-y-8">
+        
       {pendingInvites.length > 0 && (
         <section className="bg-card rounded-lg p-6">
           <p className="text-sm font-body text-muted-foreground tracking-wide uppercase mb-4">
