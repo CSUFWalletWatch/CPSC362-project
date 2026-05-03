@@ -118,7 +118,14 @@ const { error: memberError } = await supabase.from("goal_members").insert({
 });
 
 if (memberError) {
-  toast({ title: "Goal created, but member link failed", description: memberError.message, variant: "destructive" });
+  console.error("Goal member insert failed:", memberError);
+
+  toast({
+    title: "Goal created, but member link failed",
+    description: memberError.message,
+    variant: "destructive",
+  });
+
   setSubmitting(false);
   return;
 }
