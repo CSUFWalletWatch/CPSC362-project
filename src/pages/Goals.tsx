@@ -89,20 +89,37 @@ export default function Goals() {
       }
       toast({ title: "Goal updated" });
     } else {
-      const { error } = await supabase.from("goals").insert([{
-        user_id: user.id,
-        name: name.trim(),
-        target_amount: parsedTargetAmount,
-        saved_amount: 0,
-        deadline: deadline || null,
-      }]);
+      const { data, error } = await supabase
+  .from("goals")
+  .insert([{
+    user_id: user.id,
+    name: name.trim(),
+    target_amount: parsedTargetAmount,
+    saved_amount: 0,
+    deadline: deadline || null,
+  }])
+  .select()
+  .single();
 
-      if (error) {
-        toast({ title: "Error creating goal", description: error.message, variant: "destructive" });
-        setSubmitting(false);
-        return;
-      }
-      toast({ title: "Goal created" });
+if (error) {
+  toast({ title: "Error creating goal", description: error.message, variant: "destructive" });
+  setSubmitting(false);
+  return;
+}
+
+const { error: memberError } = await supabase.from("goal_members").insert({
+  goal_id: data.id,
+  user_id: user.id,
+  role: "owner",
+});
+
+if (memberError) {
+  toast({ title: "Goal created, but member link failed", description: memberError.message, variant: "destructive" });
+  setSubmitting(false);
+  return;
+}
+
+toast({ title: "Goal created" });
     }
 
     setSubmitting(false);
