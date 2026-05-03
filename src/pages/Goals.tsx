@@ -11,7 +11,7 @@ type Goal = {
   target_amount: number;
   saved_amount: number;
   deadline?: string | null;
-};
+}; 
 
 export default function Goals() {
   const { user, loading: authLoading } = useAuth();
