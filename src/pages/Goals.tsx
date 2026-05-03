@@ -419,7 +419,7 @@ const handleInviteUser = async (goalId: string) => {
                   onClick={() => handleDeleteGoal(goal.id)}
                   className="px-3 py-1 text-xs rounded-md border border-border hover:bg-muted transition-colors"
                 >
-                  Delete
+                  Delete button testererewrewrwer
                 </button>
               </div>
             </div>
