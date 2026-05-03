@@ -12,7 +12,7 @@ type Goal = {
   saved_amount: number;
   deadline?: string | null;
 }; 
-
+#f
 export default function Goals() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
