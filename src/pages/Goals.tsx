@@ -423,10 +423,6 @@ const handleInviteUser = async (goalId: string) => {
                 </button>
               </div>
             </div>
-
-
-
-                  
                   <div>
                     <div className="w-full bg-muted h-2 rounded-full overflow-hidden">
                       <div
