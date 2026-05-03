@@ -33,6 +33,10 @@ export default function Goals() {
   const [contributing, setContributing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [invitingGoalId, setInvitingGoalId] = useState<string | null>(null);
+  const [sendingInvite, setSendingInvite] = useState(false);
+
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth");
   }, [user, authLoading, navigate]);
