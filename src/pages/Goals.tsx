@@ -12,8 +12,9 @@ type Goal = {
   saved_amount: number;
   deadline?: string | null;
 }; 
-#f
+
 export default function Goals() {
+  console.log("GOALS PAGE LOADED");
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -36,30 +37,106 @@ export default function Goals() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [invitingGoalId, setInvitingGoalId] = useState<string | null>(null);
   const [sendingInvite, setSendingInvite] = useState(false);
+  const [pendingInvites, setPendingInvites] = useState<any[]>([]);
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth");
   }, [user, authLoading, navigate]);
 
   useEffect(() => {
-    if (user) fetchGoals();
+    if (user) {
+      fetchGoals();
+      fetchPendingInvites();
+    }
   }, [user]);
 
   async function fetchGoals() {
     if (!user) return;
+  
     setLoading(true);
+  
+    const { data: memberships, error: membershipError } = await supabase
+      .from("goal_members")
+      .select("goal_id")
+      .eq("user_id", user.id);
+  
+    if (membershipError) {
+      toast({
+        title: "Error loading goal memberships",
+        description: membershipError.message,
+        variant: "destructive",
+      });
+      setLoading(false);
+      return;
+    }
+  
+    const goalIds = memberships?.map((m) => m.goal_id) || [];
+  
+    if (goalIds.length === 0) {
+      setGoals([]);
+      setLoading(false);
+      return;
+    }
+  
     const { data, error } = await supabase
       .from("goals")
       .select("id, user_id, name, target_amount, saved_amount, deadline")
-      .eq("user_id", user.id)
+      .in("id", goalIds)
       .order("created_at", { ascending: false });
-
+  
     if (error) {
-      toast({ title: "Error loading goals", description: error.message, variant: "destructive" });
+      toast({
+        title: "Error loading goals",
+        description: error.message,
+        variant: "destructive",
+      });
     } else {
       setGoals((data as Goal[]) || []);
     }
+  
     setLoading(false);
+  }
+
+  async function fetchPendingInvites() {
+    if (!user?.email) return;
+  
+    const { data, error } = await supabase
+      .from("goal_invites")
+      .select(`
+        id,
+        goal_id,
+        inviter_id,
+        invitee_email,
+        status,
+        goals (
+          id,
+          name,
+          target_amount,
+          saved_amount,
+          deadline
+        )
+      `)
+      .eq("invitee_email", user.email.trim().toLowerCase())
+      .eq("status", "pending");
+
+    console.log("Logged in email:", user.email);
+    console.log("Query email:", user.email.trim().toLowerCase());
+    console.log("Pending invite error:", error);
+    console.log("Pending invite data:", data);
+
+    
+  
+    if (error) {
+      toast({
+        title: "Error loading invites",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+  
+    setPendingInvites(data || []);
+    console.log("pending invites data:", data);
   }
 
   const resetForm = () => {
@@ -93,7 +170,7 @@ export default function Goals() {
       }
       toast({ title: "Goal updated" });
     } else {
-      const { data, error } = await supabase
+      const { error } = await supabase
   .from("goals")
   .insert([{
     user_id: user.id,
@@ -107,25 +184,6 @@ export default function Goals() {
 
 if (error) {
   toast({ title: "Error creating goal", description: error.message, variant: "destructive" });
-  setSubmitting(false);
-  return;
-}
-
-const { error: memberError } = await supabase.from("goal_members").insert({
-  goal_id: data.id,
-  user_id: user.id,
-  role: "owner",
-});
-
-if (memberError) {
-  console.error("Goal member insert failed:", memberError);
-
-  toast({
-    title: "Goal created, but member link failed",
-    description: memberError.message,
-    variant: "destructive",
-  });
-
   setSubmitting(false);
   return;
 }
@@ -169,9 +227,50 @@ const handleInviteUser = async (goalId: string) => {
   }
 
   toast({ title: "Invite sent" });
+
+  await fetchPendingInvites();
+  
   setInviteEmail("");
   setInvitingGoalId(null);
   setSendingInvite(false);
+};
+
+  const handleAcceptInvite = async (invite: any) => {
+  if (!user) return;
+
+  const { error: memberError } = await supabase.from("goal_members").upsert({
+    goal_id: invite.goal_id,
+    user_id: user.id,
+    role: "member",
+  });
+
+  if (memberError) {
+    toast({
+      title: "Error accepting invite",
+      description: memberError.message,
+      variant: "destructive",
+    });
+    return;
+  }
+
+  const { error: inviteError } = await supabase
+    .from("goal_invites")
+    .update({ status: "accepted" })
+    .eq("id", invite.id);
+
+  if (inviteError) {
+    toast({
+      title: "Joined goal, but invite status failed",
+      description: inviteError.message,
+      variant: "destructive",
+    });
+    return;
+  }
+
+  toast({ title: "Invite accepted" });
+
+  await fetchPendingInvites();
+  await fetchGoals();
 };
   
   const handleDeleteGoal = async (goalId: string) => {
@@ -251,7 +350,38 @@ const handleInviteUser = async (goalId: string) => {
       </header>
 
       <main className="max-w-4xl mx-auto px-6 py-10 space-y-8">
-
+      {pendingInvites.length > 0 && (
+        <section className="bg-card rounded-lg p-6">
+          <p className="text-sm font-body text-muted-foreground tracking-wide uppercase mb-4">
+            Pending Invites
+          </p>
+      
+          <div className="space-y-3">
+            {pendingInvites.map((invite) => (
+              <div
+                key={invite.id}
+                className="flex justify-between items-center border border-border rounded-md p-3"
+              >
+                <div>
+                  <p className="font-medium text-foreground">
+                    {invite.goals?.name || "Shared Goal"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    You were invited to join this goal.
+                  </p>
+                </div>
+      
+                <button
+                  onClick={() => handleAcceptInvite(invite)}
+                  className="rounded-md bg-foreground text-background px-4 py-2 text-sm hover:opacity-90 transition-opacity"
+                >
+                  Accept
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
         {/* Contribution form */}
         <section className="bg-card rounded-lg p-6">
           <p className="text-sm font-body text-muted-foreground tracking-wide uppercase mb-4">Add Contribution</p>
