@@ -23,6 +23,7 @@ A personal finance web application built for CPSC 362 — Software Engineering a
 - **Bank Integration:** *mock*Plaid API (via Supabase Edge Functions)
 - **Hosting:** Vercel
 - **Charts:** Recharts
+- *claude code for debugging and ui*
 ## System Requirements
  
 - Node.js 18+
