@@ -51,51 +51,37 @@ export default function Goals() {
   }, [user]);
 
   async function fetchGoals() {
-    if (!user) return;
-  
-    setLoading(true);
-  
-    const { data: memberships, error: membershipError } = await supabase
-      .from("goal_members")
-      .select("goal_id")
-      .eq("user_id", user.id);
-  
-    if (membershipError) {
-      toast({
-        title: "Error loading goal memberships",
-        description: membershipError.message,
-        variant: "destructive",
-      });
-      setLoading(false);
-      return;
-    }
-  
-    const goalIds = memberships?.map((m) => m.goal_id) || [];
-  
-    if (goalIds.length === 0) {
-      setGoals([]);
-      setLoading(false);
-      return;
-    }
-  
-    const { data, error } = await supabase
-      .from("goals")
-      .select("id, user_id, name, target_amount, saved_amount, deadline")
-      .in("id", goalIds)
-      .order("created_at", { ascending: false });
-  
-    if (error) {
-      toast({
-        title: "Error loading goals",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else {
-      setGoals((data as Goal[]) || []);
-    }
-  
+  if (!user) return;
+
+  setLoading(true);
+
+  const { data, error } = await supabase
+    .from("goals")
+    .select(`
+      id,
+      user_id,
+      name,
+      target_amount,
+      saved_amount,
+      deadline,
+      goal_members!left(user_id)
+    `)
+    .or(`user_id.eq.${user.id},goal_members.user_id.eq.${user.id}`)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    toast({
+      title: "Error loading goals",
+      description: error.message,
+      variant: "destructive",
+    });
     setLoading(false);
+    return;
   }
+
+  setGoals((data as Goal[]) || []);
+  setLoading(false);
+}
 
   async function fetchPendingInvites() {
     if (!user?.email) return;
