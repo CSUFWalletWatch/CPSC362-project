@@ -238,11 +238,19 @@ const handleInviteUser = async (goalId: string) => {
   const handleAcceptInvite = async (invite: any) => {
   if (!user) return;
 
-  const { error: memberError } = await supabase.from("goal_members").upsert({
-    goal_id: invite.goal_id,
-    user_id: user.id,
-    role: "member",
-  });
+  const { error: memberError } = await supabase
+    .from("goal_members")
+    .upsert(
+      {
+        goal_id: invite.goal_id,
+        user_id: user.id,
+        role: "member",
+      },
+      {
+        onConflict: "goal_id,user_id",
+        ignoreDuplicates: true,
+      }
+    );
 
   if (memberError) {
     toast({
@@ -348,10 +356,7 @@ const handleInviteUser = async (goalId: string) => {
           </button>
         </div>
       </header>
-      #TEST CODE
-      <div className="bg-red-500 text-white text-center py-2 font-bold">
-        BUILD TEST V2
-      </div>
+      
       <main className="max-w-4xl mx-auto px-6 py-10 space-y-8">
         
       {pendingInvites.length > 0 && (
