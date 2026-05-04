@@ -4,30 +4,56 @@ import { useAuth } from "@/hooks/useAuth";
 import { Link } from "react-router-dom";
 
 export default function GoalsPreview() {
- const { user } = useAuth();
+  const { user } = useAuth();
   const [goal, setGoal] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!user) return;
-    supabase
-      .from("goals")
-      .select("id, name, target_amount, saved_amount")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .then(({ data }) => {
-        if (data && data.length > 0) {
-          setGoal({
-            id: data[0].id,
-            name: data[0].name,
-            saved: data[0].saved_amount,
-            target: data[0].target_amount,
-          });
+      useEffect(() => {
+        if (!user) {
+          setLoading(false);
+          return;
         }
-        setLoading(false);
-      });
-  }, [user]);
+    
+        const fetchGoal = async () => {
+          setLoading(true);
+    
+          const { data, error } = await supabase
+            .from("goals")
+            .select(`
+              id,
+              name,
+              target_amount,
+              saved_amount,
+              created_at,
+              goal_members!left(user_id)
+            `)
+            .or(`user_id.eq.${user.id},goal_members.user_id.eq.${user.id}`)
+            .order("created_at", { ascending: false })
+            .limit(1);
+    
+          if (error) {
+            console.error("Goals preview error:", error);
+            setGoal(null);
+            setLoading(false);
+            return;
+          }
+    
+          if (data && data.length > 0) {
+            setGoal({
+              id: data[0].id,
+              name: data[0].name,
+              saved: data[0].saved_amount,
+              target: data[0].target_amount,
+            });
+          } else {
+            setGoal(null);
+          }
+    
+          setLoading(false);
+        };
+    
+        fetchGoal();
+      }, [user]);
 
   if (loading) return <div className="border rounded-lg p-4"><p className="text-sm text-muted-foreground">Loading...</p></div>;
   
