@@ -297,27 +297,40 @@ const handleInviteUser = async (goalId: string) => {
   const handleAddContribution = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !selectedGoalId || !contributionAmount) return;
-
+  
     const amount = Number(contributionAmount);
     if (Number.isNaN(amount) || amount <= 0) return;
-
+  
     const selectedGoal = goals.find((g) => g.id === selectedGoalId);
     if (!selectedGoal) return;
-
+  
     setContributing(true);
-
+  
+    const { data: freshGoal, error: fetchError } = await supabase
+      .from("goals")
+      .select("saved_amount")
+      .eq("id", selectedGoalId)
+      .single();
+  
+    if (fetchError) {
+      toast({ title: "Error loading goal", description: fetchError.message, variant: "destructive" });
+      setContributing(false);
+      return;
+    }
+  
     const { error } = await supabase
       .from("goals")
-      .update({ saved_amount: selectedGoal.saved_amount + amount })
+      .update({
+        saved_amount: (freshGoal?.saved_amount || 0) + amount,
+      })
       .eq("id", selectedGoalId);
-
+  
     if (error) {
       toast({ title: "Error adding contribution", description: error.message, variant: "destructive" });
       setContributing(false);
       return;
     }
-
-    // Debit transaction so net worth reflects the contribution
+  
     const { error: txError } = await supabase.from("transactions").insert({
       user_id: user.id,
       name: `Goal: ${selectedGoal.name}`,
@@ -326,10 +339,11 @@ const handleInviteUser = async (goalId: string) => {
       date: new Date().toISOString().split("T")[0],
       is_manual: true,
     });
+  
     if (txError) {
       console.error("Contribution transaction error:", txError);
     }
-
+  
     toast({ title: "Contribution added", description: `$${amount.toFixed(2)} added to "${selectedGoal.name}"` });
     setContributionAmount("");
     setSelectedGoalId("");
