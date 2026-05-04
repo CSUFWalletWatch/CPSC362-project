@@ -298,7 +298,12 @@ const handleInviteUser = async (goalId: string) => {
     });
   
     if (error) {
-      toast({ title: "Error adding contribution", description: error.message, variant: "destructive" });
+      alert(`RPC ERROR: ${error.message}`);
+      toast({
+        title: "Error adding contribution",
+        description: error.message,
+        variant: "destructive",
+      });
       setContributing(false);
       return;
     }
