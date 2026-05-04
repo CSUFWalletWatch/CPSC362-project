@@ -51,37 +51,60 @@ export default function Goals() {
   }, [user]);
 
   async function fetchGoals() {
-  if (!user) return;
-
-  setLoading(true);
-
-  const { data, error } = await supabase
-    .from("goals")
-    .select(`
-      id,
-      user_id,
-      name,
-      target_amount,
-      saved_amount,
-      deadline,
-      goal_members!left(user_id)
-    `)
-    .or(`user_id.eq.${user.id},goal_members.user_id.eq.${user.id}`)
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    toast({
-      title: "Error loading goals",
-      description: error.message,
-      variant: "destructive",
-    });
+    if (!user) return;
+  
+    setLoading(true);
+  
+    const { data, error } = await supabase
+      .from("goals")
+      .select(`
+        id,
+        user_id,
+        name,
+        target_amount,
+        saved_amount,
+        deadline,
+        goal_members!left(user_id)
+      `)
+      .or(`user_id.eq.${user.id},goal_members.user_id.eq.${user.id}`)
+      .order("created_at", { ascending: false });
+  
+    if (error) {
+      toast({
+        title: "Error loading goals",
+        description: error.message,
+        variant: "destructive",
+      });
+      setLoading(false);
+      return;
+    }
+  
+    const goals = (data as Goal[]) || [];
+    const goalIds = goals.map((g) => g.id);
+  
+    if (goalIds.length > 0) {
+      const { data: contributions } = await supabase
+        .from("goal_contributions")
+        .select("goal_id, amount")
+        .in("goal_id", goalIds);
+  
+      const contribSums: Record<string, number> = {};
+      for (const row of contributions || []) {
+        contribSums[row.goal_id] = (contribSums[row.goal_id] || 0) + row.amount;
+      }
+  
+      setGoals(
+        goals.map((g) => ({
+          ...g,
+          saved_amount: contribSums[g.id] ?? g.saved_amount,
+        }))
+      );
+    } else {
+      setGoals(goals);
+    }
+  
     setLoading(false);
-    return;
   }
-
-  setGoals((data as Goal[]) || []);
-  setLoading(false);
-}
 
   async function fetchPendingInvites() {
     if (!user?.email) return;
