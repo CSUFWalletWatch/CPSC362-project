@@ -309,8 +309,7 @@ const handleInviteUser = async (goalId: string) => {
     const { error } = await supabase
       .from("goals")
       .update({ saved_amount: selectedGoal.saved_amount + amount })
-      .eq("id", selectedGoalId)
-      .eq("user_id", user.id);
+      .eq("id", selectedGoalId);
 
     if (error) {
       toast({ title: "Error adding contribution", description: error.message, variant: "destructive" });
