@@ -401,7 +401,9 @@ const Budget = () => {
                             />
                           ) : (
                             <div className="text-sm text-muted-foreground">
-                              ${sub.amount.toLocaleString()}
+                              ${(
+                                categories.find((c) => c.category === sub.name)?.amount || 0
+                              ).toLocaleString()} spent / ${sub.amount.toLocaleString()} budgeted
                             </div>
                           )}
                         </div>
