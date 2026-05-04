@@ -292,24 +292,10 @@ const handleInviteUser = async (goalId: string) => {
   
     setContributing(true);
   
-    const { data: freshGoal, error: fetchError } = await supabase
-      .from("goals")
-      .select("saved_amount")
-      .eq("id", selectedGoalId)
-      .single();
-  
-    if (fetchError) {
-      toast({ title: "Error loading goal", description: fetchError.message, variant: "destructive" });
-      setContributing(false);
-      return;
-    }
-  
-    const { error } = await supabase
-      .from("goals")
-      .update({
-        saved_amount: (freshGoal?.saved_amount || 0) + amount,
-      })
-      .eq("id", selectedGoalId);
+    const { error } = await supabase.rpc("increment_goal_saved_amount", {
+      goal_id_input: selectedGoalId,
+      amount_input: amount,
+    });
   
     if (error) {
       toast({ title: "Error adding contribution", description: error.message, variant: "destructive" });
